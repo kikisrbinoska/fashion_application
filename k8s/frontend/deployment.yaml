@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fashion-frontend
+  namespace: fashion-app
+  labels:
+    app: fashion-frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: fashion-frontend
+  template:
+    metadata:
+      labels:
+        app: fashion-frontend
+    spec:
+      containers:
+      - name: frontend
+        image: kikisrbinoska/fashion-frontend:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
