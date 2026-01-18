@@ -33,8 +33,6 @@ jobs:
         tags: |
           ${{ secrets.DOCKERHUB_USERNAME }}/fashion-backend:latest
           ${{ secrets.DOCKERHUB_USERNAME }}/fashion-backend:${{ github.sha }}
-        cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/fashion-backend:buildcache
-        cache-to: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/fashion-backend:buildcache,mode=max
 
     # Build and push Frontend
     - name: Build and push Frontend
@@ -46,8 +44,23 @@ jobs:
         tags: |
           ${{ secrets.DOCKERHUB_USERNAME }}/fashion-frontend:latest
           ${{ secrets.DOCKERHUB_USERNAME }}/fashion-frontend:${{ github.sha }}
-        cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/fashion-frontend:buildcache
-        cache-to: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/fashion-frontend:buildcache,mode=max
 
-    - name: Image digest
-      run: echo "Images pushed successfully!"
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Deploy to Azure VM
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.SSH_HOST }}
+        username: ${{ secrets.SSH_USER }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        script: |
+          cd ~/fashion_application
+          git pull origin main
+          docker login -u ${{ secrets.DOCKERHUB_USERNAME }} -p ${{ secrets.DOCKERHUB_TOKEN }}
+          docker-compose -f docker-compose.prod.yml pull
+          docker-compose -f docker-compose.prod.yml up -d
+          docker image prune -f
