@@ -6,3 +6,10 @@ metadata:
 data:
   POSTGRES_DB: postgres
   POSTGRES_USER: postgres
+  primary.conf: |
+    wal_level = replica
+    max_wal_senders = 10
+    max_replication_slots = 10
+    hot_standby = on
+  replica.conf: |
+    hot_standby = on

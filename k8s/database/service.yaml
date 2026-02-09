@@ -3,8 +3,47 @@ kind: Service
 metadata:
   name: postgres-service
   namespace: fashion-app
+  labels:
+    app: postgres
 spec:
-  clusterIP: None  # Headless service
+  clusterIP: None  # Headless
+  selector:
+    app: postgres
+  ports:
+  - port: 5432
+    targetPort: 5432
+    name: postgres
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-primary
+  namespace: fashion-app
+  labels:
+    app: postgres
+    role: primary
+spec:
+  type: ClusterIP
+  selector:
+    app: postgres
+    statefulset.kubernetes.io/pod-name: postgres-0  # Само postgres-0 (Primary)
+  ports:
+  - port: 5432
+    targetPort: 5432
+    name: postgres
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-readonly
+  namespace: fashion-app
+  labels:
+    app: postgres
+    role: readonly
+spec:
+  type: ClusterIP
   selector:
     app: postgres
   ports:

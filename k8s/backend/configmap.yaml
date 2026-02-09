@@ -5,4 +5,5 @@ metadata:
   namespace: fashion-app
 data:
   SPRING_PROFILES_ACTIVE: "prod"
-  SPRING_DATASOURCE_URL: "jdbc:postgresql://postgres-service.fashion-app.svc.cluster.local:5432/postgres"
+  SPRING_DATASOURCE_URL: "jdbc:postgresql://postgres-primary.fashion-app.svc.cluster.local:5432/postgres"
+  SPRING_DATASOURCE_READONLY_URL: "jdbc:postgresql://postgres-readonly.fashion-app.svc.cluster.local:5432/postgres"

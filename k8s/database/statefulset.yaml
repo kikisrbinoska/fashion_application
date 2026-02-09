@@ -5,7 +5,7 @@ metadata:
   namespace: fashion-app
 spec:
   serviceName: postgres-service
-  replicas: 1
+  replicas: 3  # 1 Primary + 2 Replicas
   selector:
     matchLabels:
       app: postgres
@@ -14,6 +14,99 @@ spec:
       labels:
         app: postgres
     spec:
+      securityContext:
+        fsGroup: 70
+      initContainers:
+      - name: init-postgres
+        image: postgres:15-alpine
+        securityContext:
+          runAsUser: 70
+          runAsGroup: 70
+        command:
+        - sh
+        - -c
+        - |
+          set -ex
+          # postgres-0 е Primary, другите се Replicas
+          if [[ $HOSTNAME == "postgres-0" ]]; then
+            echo "=== INITIALIZING PRIMARY NODE ==="
+            
+            
+            if [ ! -f /var/lib/postgresql/data/pgdata/PG_VERSION ]; then
+              echo "Initializing new PostgreSQL database..."
+              initdb -D /var/lib/postgresql/data/pgdata
+              
+              
+              echo "host replication replicator 0.0.0.0/0 md5" >> /var/lib/postgresql/data/pgdata/pg_hba.conf
+              echo "host all all 0.0.0.0/0 md5" >> /var/lib/postgresql/data/pgdata/pg_hba.conf
+              
+              
+              cat /config/primary.conf >> /var/lib/postgresql/data/pgdata/postgresql.conf
+              
+              echo "Primary initialization complete"
+            else
+              echo "Primary already initialized, skipping..."
+            fi
+          else
+            echo "=== INITIALIZING REPLICA NODE ==="
+            
+            
+            until pg_isready -h postgres-0.postgres-service.fashion-app.svc.cluster.local -U postgres; do
+              echo "Waiting for primary (postgres-0) to be ready..."
+              sleep 3
+            done
+            
+            
+            if [ ! -f /var/lib/postgresql/data/pgdata/PG_VERSION ]; then
+              echo "Syncing data from primary..."
+              
+              PGPASSWORD=$REPLICATOR_PASSWORD pg_basebackup \
+                -h postgres-0.postgres-service.fashion-app.svc.cluster.local \
+                -D /var/lib/postgresql/data/pgdata \
+                -U replicator \
+                -Fp \
+                -Xs \
+                -P \
+                -R
+              
+              
+              cat /config/replica.conf >> /var/lib/postgresql/data/pgdata/postgresql.conf
+              
+              
+              touch /var/lib/postgresql/data/pgdata/standby.signal
+              
+              
+              echo "primary_conninfo = 'host=postgres-0.postgres-service.fashion-app.svc.cluster.local port=5432 user=replicator password=$REPLICATOR_PASSWORD'" >> /var/lib/postgresql/data/pgdata/postgresql.auto.conf
+              
+              echo "Replica sync complete"
+            else
+              echo "Replica already initialized, skipping..."
+            fi
+          fi
+        env:
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: db-secret
+              key: username
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: db-secret
+              key: password
+        - name: REPLICATOR_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: db-secret
+              key: replicator-password
+        volumeMounts:
+        - name: postgres-storage
+          mountPath: /var/lib/postgresql/data
+        - name: config
+          mountPath: /config
+
       containers:
       - name: postgres
         image: postgres:15-alpine
@@ -38,32 +131,64 @@ spec:
               key: password
         - name: PGDATA
           value: /var/lib/postgresql/data/pgdata
+        
+        lifecycle:
+          postStart:
+            exec:
+              command:
+              - sh
+              - -c
+              - |
+                if [[ $HOSTNAME == "postgres-0" ]]; then
+                  sleep 15
+                  psql -U $POSTGRES_USER -d $POSTGRES_DB -c "SELECT 1" > /dev/null 2>&1
+                  if [ $? -eq 0 ]; then
+                    psql -U $POSTGRES_USER -d $POSTGRES_DB -c "CREATE USER replicator WITH REPLICATION ENCRYPTED PASSWORD '$REPLICATOR_PASSWORD';" 2>/dev/null || echo "Replication user already exists"
+                    echo "Replication user configured"
+                  fi
+                fi
+        
         volumeMounts:
         - name: postgres-storage
           mountPath: /var/lib/postgresql/data
+        - name: config
+          mountPath: /config
+        
         resources:
           requests:
-            memory: "256Mi"
+            memory: "512Mi"
             cpu: "250m"
           limits:
-            memory: "512Mi"
+            memory: "1Gi"
             cpu: "500m"
+        
         livenessProbe:
           exec:
             command:
             - pg_isready
             - -U
             - postgres
-          initialDelaySeconds: 30
+          initialDelaySeconds: 60
           periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 6
+        
         readinessProbe:
           exec:
             command:
-            - pg_isready
-            - -U
-            - postgres
-          initialDelaySeconds: 5
-          periodSeconds: 5
+            - sh
+            - -c
+            - pg_isready -U postgres && psql -U postgres -d postgres -c "SELECT 1" > /dev/null
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+
+      volumes:
+      - name: config
+        configMap:
+          name: db-config
+
   volumeClaimTemplates:
   - metadata:
       name: postgres-storage
@@ -71,4 +196,4 @@ spec:
       accessModes: ["ReadWriteOnce"]
       resources:
         requests:
-          storage: 1Gi
+          storage: 2Gi
