@@ -6,7 +6,7 @@ services:
     container_name: fashion-db
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: kikis
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: postgres
     ports:
       - "5432:5432"
