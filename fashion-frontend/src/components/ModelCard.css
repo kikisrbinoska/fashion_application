@@ -1,43 +1,92 @@
+/* Glassmorphic Model Card */
 .model-card {
-    padding: 16px;
-    border-radius: 12px;
-    margin-bottom: 16px;
-    display: flex;
-    align-items: center;
-    gap: 20px;
-    background: linear-gradient(135deg, #a18cd1, #fbc2eb); /* виолетов градиент */
-    color: black;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-    transition: transform 0.2s ease;
-}
-.brand-info {
-    color: black;
-}
-.model-card:hover {
-    transform: scale(1.02);
-}
-
-.model-card img {
-    width: 100px;
-    height: 100px;
-    object-fit: cover;
-    border-radius: 8px;
-    border: 2px solid #fff;
-}
-
-.model-info {
+    overflow: hidden;
+    cursor: pointer;
     display: flex;
     flex-direction: column;
 }
 
-.model-info h3 {
-    margin: 0 0 6px 0;
-    font-size: 1.2rem;
-    color: #fff;
+.model-image-wrapper {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 3/4;
+    overflow: hidden;
+    border-radius: 30px 30px 0 0;
 }
 
-.model-info p {
-    margin: 3px 0;
+.model-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.5s ease;
+}
+
+.model-card:hover .model-image {
+    transform: scale(1.1);
+}
+
+.model-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+        to bottom,
+        rgba(0, 0, 0, 0) 0%,
+        rgba(0, 0, 0, 0.1) 50%,
+        rgba(0, 0, 0, 0.3) 100%
+    );
+    pointer-events: none;
+}
+
+.model-info {
+    padding: 2rem 1.5rem;
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.model-name {
+    font-size: 1.75rem;
+    font-weight: 400;
+    letter-spacing: 0.05em;
+    color: #fff;
+    margin: 0;
+    text-transform: uppercase;
+}
+
+.model-height {
+    font-size: 1rem;
+    color: rgba(255, 255, 255, 0.9);
+    margin: 0;
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.label {
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    letter-spacing: 0.05em;
+}
+
+.model-bio {
     font-size: 0.95rem;
-    color: #f0f0f0;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.95);
+    margin: 0;
+    flex: 1;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .model-info {
+        padding: 1.5rem 1.25rem;
+    }
+
+    .model-name {
+        font-size: 1.5rem;
+    }
 }
